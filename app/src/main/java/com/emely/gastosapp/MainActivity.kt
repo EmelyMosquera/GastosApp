@@ -4,13 +4,12 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 import com.emely.gastosapp.ui.theme.GastosAppTheme
 
 class MainActivity : ComponentActivity() {
@@ -18,30 +17,32 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            GastosAppTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Android",
-                        modifier = Modifier.padding(innerPadding)
-                    )
+            // Inicialización del ViewModel que contiene los datos de Room y DataStore
+            val miViewModel: GastosViewModel = viewModel()
+
+            // Recolectamos el estado del Modo Oscuro en tiempo real
+            val modoOscuro by miViewModel.isDarkMode.collectAsState()
+
+            // Aplicamos el tema gráfico dinámico de la aplicación
+            GastosAppTheme(darkTheme = modoOscuro) {
+                val navegador = rememberNavController()
+
+                // NavHost: Define la estructura de navegación exigida en la rúbrica
+                NavHost(navController = navegador, startDestination = "pantalla_inicio") {
+                    composable("pantalla_inicio") {
+                        PantallaListaGastos(
+                            viewModel = miViewModel,
+                            alIrAAjustes = { navegador.navigate("pantalla_config") }
+                        )
+                    }
+                    composable("pantalla_config") {
+                        PantallaAjustes(
+                            viewModel = miViewModel,
+                            alVolver = { navegador.popBackStack() }
+                        )
+                    }
                 }
             }
         }
-    }
-}
-
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    GastosAppTheme {
-        Greeting("Android")
     }
 }
