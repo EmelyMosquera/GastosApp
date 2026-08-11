@@ -52,13 +52,14 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import retrofit2.Response
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.GET
 
 // =================================================================
 // PERSISTENCIA DE DATOS LOCALES CON ROOM (HISTORIAL DE GASTOS)
 // =================================================================
 
-// Entidad: Define la estructura de la tabla en la base de datos local
 @Entity(tableName = "gastos_table")
 data class Gasto(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
@@ -68,7 +69,6 @@ data class Gasto(
     val fecha: String
 )
 
-// DAO (Data Access Object): Interfaz con las operaciones SQL de la app
 @Dao
 interface GastoDao {
     @Query("SELECT * FROM gastos_table ORDER BY id DESC")
@@ -78,7 +78,6 @@ interface GastoDao {
     suspend fun insertGasto(gasto: Gasto)
 }
 
-// Database: Clase principal que inicializa y gestiona la base de datos Room
 @Database(entities = [Gasto::class], version = 1, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun gastoDao(): GastoDao
@@ -105,36 +104,43 @@ abstract class AppDatabase : RoomDatabase() {
 // ESTRUCTURA Y SERVICIO PARA API REMOTA (RETROFIT)
 // =================================================================
 
-// Modelo de datos que recibe la respuesta en formato JSON desde internet
 data class TipoCambioRespuesta(
     val base_code: String,
     val result: String
 )
 
-// Interfaz que define la consulta GET a la API remota pública
 interface TipoCambioApiService {
     @GET("v6/latest/USD")
     suspend fun obtenerTipoCambio(): Response<TipoCambioRespuesta>
+}
+
+// Proveedor del cliente de internet (Retrofit Builder) exigido en el silabo
+object RetrofitCliente {
+    private const val BASE_URL = "https://exchangerate-api.com"
+
+    val apiService: TipoCambioApiService by lazy {
+        Retrofit.Builder()
+            .baseUrl(BASE_URL)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+            .create(TipoCambioApiService::class.java)
+    }
 }
 // =================================================================
 // PERSISTENCIA DE PREFERENCIAS CON DATASTORE (AJUSTES DE USUARIO)
 // =================================================================
 
-// Instancia única global de DataStore vinculada al contexto de la app
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "user_settings")
 
-// Repositorio encargado de leer y escribir la preferencia del Modo Oscuro
 class UserPreferencesRepository(private val context: Context) {
     companion object {
         val IS_DARK_MODE = booleanPreferencesKey("is_dark_mode")
     }
 
-    // Flujo asíncrono que emite cambios sobre el estado del Modo Oscuro
     val isDarkMode: Flow<Boolean> = context.dataStore.data.map { pref ->
         pref[IS_DARK_MODE] == true
     }
 
-    // Guarda de forma persistente la preferencia elegida por el usuario
     suspend fun saveThemePreference(isDarkMode: Boolean) {
         context.dataStore.edit { pref ->
             pref[IS_DARK_MODE] = isDarkMode
@@ -152,22 +158,18 @@ class GastosViewModel(application: Application) : AndroidViewModel(application) 
     private val gastoDao = database.gastoDao()
     private val prefsRepository = UserPreferencesRepository(application)
 
-    // Expone la preferencia del Modo Oscuro mediante un StateFlow reactivo
     val isDarkMode: StateFlow<Boolean> = prefsRepository.isDarkMode
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
-    // Expone la lista de gastos locales actualizada en tiempo real
     val listaGastos: StateFlow<List<Gasto>> = gastoDao.getAllGastos()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    // Modifica las preferencias del usuario usando Corrutinas
     fun cambiarModoOscuro(activo: Boolean) {
         viewModelScope.launch {
             prefsRepository.saveThemePreference(activo)
         }
     }
 
-    // Registra un nuevo gasto de forma asíncrona dentro de Room
     fun registrarGasto(titulo: String, monto: Double) {
         viewModelScope.launch {
             val nuevoGasto = Gasto(
@@ -185,7 +187,6 @@ class GastosViewModel(application: Application) : AndroidViewModel(application) 
 // CAPA DE INTERFAZ DE USUARIO (VISTAS REACTIVAS CON JETPACK COMPOSE)
 // =================================================================
 
-// Pantalla Principal: Permite ingresar datos y ver el historial en una lista dinámica
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PantallaListaGastos(viewModel: GastosViewModel, alIrAAjustes: () -> Unit) {
@@ -236,7 +237,6 @@ fun PantallaListaGastos(viewModel: GastosViewModel, alIrAAjustes: () -> Unit) {
             Text("Historial de Gastos (Room):", style = MaterialTheme.typography.titleMedium)
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Lista dinámica optimizada exigida en la rúbrica del proyecto
             LazyColumn {
                 items(gastos) { gasto ->
                     Card(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
@@ -254,7 +254,6 @@ fun PantallaListaGastos(viewModel: GastosViewModel, alIrAAjustes: () -> Unit) {
     }
 }
 
-// Pantalla Opcional: Permite cambiar y guardar la configuración del Modo Oscuro
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PantallaAjustes(viewModel: GastosViewModel, alVolver: () -> Unit) {
