@@ -51,6 +51,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import retrofit2.Response
+import retrofit2.http.GET
 
 // =================================================================
 // PERSISTENCIA DE DATOS LOCALES CON ROOM (HISTORIAL DE GASTOS)
@@ -100,6 +102,21 @@ abstract class AppDatabase : RoomDatabase() {
 }
 
 // =================================================================
+// ESTRUCTURA Y SERVICIO PARA API REMOTA (RETROFIT)
+// =================================================================
+
+// Modelo de datos que recibe la respuesta en formato JSON desde internet
+data class TipoCambioRespuesta(
+    val base_code: String,
+    val result: String
+)
+
+// Interfaz que define la consulta GET a la API remota pública
+interface TipoCambioApiService {
+    @GET("v6/latest/USD")
+    suspend fun obtenerTipoCambio(): Response<TipoCambioRespuesta>
+}
+// =================================================================
 // PERSISTENCIA DE PREFERENCIAS CON DATASTORE (AJUSTES DE USUARIO)
 // =================================================================
 
@@ -124,6 +141,7 @@ class UserPreferencesRepository(private val context: Context) {
         }
     }
 }
+
 // =================================================================
 // VIEWMODEL: CAPA LOGICA CENTRAL DE LA APP (PATRON MVVM)
 // =================================================================
