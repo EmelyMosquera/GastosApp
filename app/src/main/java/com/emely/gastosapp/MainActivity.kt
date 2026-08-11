@@ -27,7 +27,7 @@ class MainActivity : ComponentActivity() {
             GastosAppTheme(darkTheme = modoOscuro) {
                 val navegador = rememberNavController()
 
-                // NavHost: Define la estructura de navegación exigida en la rúbrica
+                // NavHost: Define la estructura de navegación de 3 pantallas exigida en la rúbrica
                 NavHost(navController = navegador, startDestination = "pantalla_inicio") {
                     composable("pantalla_inicio") {
                         PantallaListaGastos(
