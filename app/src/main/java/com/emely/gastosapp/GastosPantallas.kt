@@ -1,6 +1,5 @@
 package com.emely.gastosapp
 
-import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -11,7 +10,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
@@ -36,42 +34,45 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 
+// Pantalla de Inicio: Sirve para capturar datos locales e informar el estado del servidor
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PantallaListaGastos(viewModel: GastosViewModel, alIrAAjustes: () -> Unit) {
+    // Recolectamos la lista de gastos desde Room de forma reactiva (MVVM)
     val gastos by viewModel.listaGastos.collectAsState()
+
+    // Variables locales para controlar lo que el usuario escribe en las cajas de texto
     var nombreGasto by remember { mutableStateOf("") }
     var precioGasto by remember { mutableStateOf("") }
     val contexto = LocalContext.current
 
-    // Lanzador 1: Se encarga de abrir la cámara nativa del sistema operativo
+    // Lanzador de la cámara: Captura la miniatura de la foto tomada
     val lanzadorCamara = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicturePreview()
     ) { mapaBits ->
         if (mapaBits != null) {
-            // Guardamos temporalmente una referencia de simulación para almacenar la foto
+            // Guardamos un identificador único simulado de la foto en el ViewModel
             viewModel.fotoTemporalUri = "foto_recibo_${System.currentTimeMillis()}"
-            Toast.makeText(contexto, "¡Foto capturada con éxito!", Toast.LENGTH_SHORT).show()
+            Toast.makeText(contexto, "¡Foto del recibo vinculada!", Toast.LENGTH_SHORT).show()
         }
     }
 
-    // Lanzador 2: Gestiona la solicitud de permisos en tiempo de ejecución exigido por la rúbrica (Punto 4e)
+    // Lanzador de permisos: Pide la cámara en tiempo de ejecución (Punto 4e de la rúbrica)
     val lanzadorPermiso = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { permisoOtorgado ->
         if (permisoOtorgado) {
-            // Caso Éxito: Si el usuario acepta, se dispara la cámara directamente
+            // Caso Éxito: Si acepta el permiso, abre la cámara inmediatamente
             lanzadorCamara.launch(null)
         } else {
-            // Caso Rechazo exigido: Mensaje claro en pantalla si el usuario niega la autorización
-            Toast.makeText(contexto, "Permiso denegado. No se puede capturar el recibo.", Toast.LENGTH_LONG).show()
+            // Caso Rechazo: Muestra un aviso flotante informando que no se podrá usar la cámara
+            Toast.makeText(contexto, "Permiso denegado. No se puede usar la cámara.", Toast.LENGTH_LONG).show()
         }
     }
-
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("GastosApp - Inicio") },
+                title = { Text("GastosApp - Finanzas") },
                 actions = {
                     Button(onClick = alIrAAjustes) { Text("Ajustes") }
                 }
@@ -80,20 +81,21 @@ fun PantallaListaGastos(viewModel: GastosViewModel, alIrAAjustes: () -> Unit) {
     ) { valoresPadding ->
         Column(modifier = Modifier.padding(valoresPadding).padding(16.dp)) {
 
-            // Componente Visual para reportar los 3 estados exigidos de la API (Punto 4d)
+            // Tarjeta de la API: Cambia de color dinámicamente según los 3 estados (Punto 4d de la rúbrica)
             Card(
                 modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
                 colors = CardDefaults.cardColors(
                     containerColor = when (viewModel.estadoApi) {
-                        "Éxito" -> MaterialTheme.colorScheme.primaryContainer
-                        "Cargando..." -> MaterialTheme.colorScheme.secondaryContainer
-                        else -> MaterialTheme.colorScheme.errorContainer
+                        "Éxito" -> MaterialTheme.colorScheme.primaryContainer       // Verde si funcionó
+                        "Cargando..." -> MaterialTheme.colorScheme.secondaryContainer // Gris si está cargando
+                        else -> MaterialTheme.colorScheme.errorContainer             // Rojo si hay error
                     }
                 )
             ) {
                 Column(modifier = Modifier.padding(12.dp)) {
-                    Text(text = "Estado API: ${viewModel.estadoApi}", style = MaterialTheme.typography.titleSmall)
+                    Text(text = "Estado del Servidor API: ${viewModel.estadoApi}", style = MaterialTheme.typography.titleSmall)
                     Text(text = viewModel.mensajeResultado, style = MaterialTheme.typography.bodyMedium)
+                    // Si falla el internet, se habilita un botón para volver a intentar la petición
                     if (viewModel.estadoApi == "Error") {
                         TextButton(onClick = { viewModel.consultarServidorRemoto() }) {
                             Text("Reintentar conexión")
@@ -102,10 +104,11 @@ fun PantallaListaGastos(viewModel: GastosViewModel, alIrAAjustes: () -> Unit) {
                 }
             }
 
+            // Campos de entrada para recibir el texto de la descripción y el costo
             OutlinedTextField(
                 value = nombreGasto,
                 onValueChange = { nombreGasto = it },
-                label = { Text("¿En qué gastaste?") },
+                label = { Text("Descripción del gasto") },
                 modifier = Modifier.fillMaxWidth()
             )
             Spacer(modifier = Modifier.height(8.dp))
@@ -115,29 +118,37 @@ fun PantallaListaGastos(viewModel: GastosViewModel, alIrAAjustes: () -> Unit) {
                 label = { Text("Monto ($)") },
                 modifier = Modifier.fillMaxWidth()
             )
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-            // NUEVO: Fila de Botones para disparar Hardware y guardar el registro completo (Punto 4e)
+            // Fila de botones para interactuar con la cámara y guardar la información
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
+                // Botón de Cámara: Dispara la solicitud del permiso obligatorio en tiempo de ejecución
                 Button(
                     onClick = { lanzadorPermiso.launch(android.Manifest.permission.CAMERA) },
                     modifier = Modifier.weight(1f).padding(end = 4.dp)
                 ) {
-                    Text(if (viewModel.fotoTemporalUri != null) "📸 ¡Con Foto!" else "📷 Capturar Recibo")
+                    Text(if (viewModel.fotoTemporalUri != null) "📸 ¡Foto Lista!" else "📷 Tomar Recibo")
                 }
 
+                // Botón Guardar: Valida que los campos no estén vacíos y que el precio sea un número real
                 Button(
                     onClick = {
                         if (nombreGasto.isNotEmpty() && precioGasto.isNotEmpty()) {
-                            val montoDouble = precioGasto.toDoubleOrNull() ?: 0.0
-                            // Enviamos el gasto acoplando el título, precio y la ruta de la foto a Room
-                            viewModel.registrarGasto(nombreGasto, montoDouble, viewModel.fotoTemporalUri)
-                            nombreGasto = ""
-                            precioGasto = ""
-                            viewModel.fotoTemporalUri = null
+                            val montoDouble = precioGasto.toDoubleOrNull()
+                            if (montoDouble != null) {
+                                // Guarda de forma asíncrona la información acoplando la foto a Room
+                                viewModel.registrarGasto(nombreGasto, montoDouble, viewModel.fotoTemporalUri)
+                                nombreGasto = ""
+                                precioGasto = ""
+                                viewModel.fotoTemporalUri = null
+                            } else {
+                                Toast.makeText(contexto, "Por favor, ingresa un número válido en el monto", Toast.LENGTH_SHORT).show()
+                            }
+                        } else {
+                            Toast.makeText(contexto, "Llena todos los campos vacíos", Toast.LENGTH_SHORT).show()
                         }
                     },
                     modifier = Modifier.weight(1f).padding(start = 4.dp)
@@ -145,15 +156,17 @@ fun PantallaListaGastos(viewModel: GastosViewModel, alIrAAjustes: () -> Unit) {
                     Text("Guardar Gasto")
                 }
             }
-
             Spacer(modifier = Modifier.height(16.dp))
-            Text("Historial de Gastos (Room):", style = MaterialTheme.typography.titleMedium)
+            Text("Historial registrado (Room Database):", style = MaterialTheme.typography.titleMedium)
             Spacer(modifier = Modifier.height(8.dp))
 
-            // LazyColumn: Lista dinámica optimizada (Punto 4a)
+            // LazyColumn: Lista dinámica optimizada exigida por la rúbrica (Punto 4a)
             LazyColumn {
                 items(gastos) { gasto ->
-                    Card(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                    ) {
                         Row(
                             modifier = Modifier.padding(16.dp).fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -161,12 +174,12 @@ fun PantallaListaGastos(viewModel: GastosViewModel, alIrAAjustes: () -> Unit) {
                         ) {
                             Column {
                                 Text(gasto.titulo, style = MaterialTheme.typography.bodyLarge)
-                                // Si el gasto tiene foto guardada de manera persistente, se coloca la marca visual
+                                // Validación visual: Si el objeto contiene una foto, se dibuja un aviso elegante
                                 if (gasto.fotoUri != null) {
                                     Text("📎 Recibo digitalizado adjunto", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
                                 }
                             }
-                            Text("$${gasto.monto}", style = MaterialTheme.typography.titleMedium)
+                            Text("$${String.format("%.2f", gasto.monto)}", style = MaterialTheme.typography.titleMedium)
                         }
                     }
                 }
@@ -175,25 +188,30 @@ fun PantallaListaGastos(viewModel: GastosViewModel, alIrAAjustes: () -> Unit) {
     }
 }
 
+// Pantalla Ajustes: Sirve para activar el modo oscuro y guardarlo en DataStore (Punto 4c)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PantallaAjustes(viewModel: GastosViewModel, alVolver: () -> Unit) {
+    // Recolectamos la preferencia del modo oscuro guardada en el almacenamiento del sistema
     val modoOscuroActivo by viewModel.isDarkMode.collectAsState()
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Ajustes de la App") }) }
+        topBar = { TopAppBar(title = { Text("Configuración General") }) }
     ) { valoresPadding ->
         Column(modifier = Modifier.padding(valoresPadding).padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("Activar Modo Oscuro", style = MaterialTheme.typography.bodyLarge)
-                Switch(
-                    checked = modoOscuroActivo,
-                    onCheckedChange = { viewModel.cambiarModoOscuro(it) }
-                )
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Activar Modo Oscuro", style = MaterialTheme.typography.bodyLarge)
+                    // Al cambiar el interruptor, el ViewModel guarda la decisión en DataStore
+                    Switch(
+                        checked = modoOscuroActivo,
+                        onCheckedChange = { viewModel.cambiarModoOscuro(it) }
+                    )
+                }
             }
             Spacer(modifier = Modifier.height(24.dp))
             Button(onClick = alVolver, modifier = Modifier.fillMaxWidth()) {
