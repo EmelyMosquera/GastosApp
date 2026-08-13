@@ -12,29 +12,34 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.emely.gastosapp.ui.theme.GastosAppTheme
 
+// Actividad Principal: Punto de entrada nativo de Android que inicializa la interfaz Compose
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Habilita el diseño de borde a borde para aprovechar toda la pantalla
         enableEdgeToEdge()
         setContent {
-            // Inicialización del ViewModel que contiene los datos de Room y DataStore
+            // Inicialización del ViewModel que controla los datos de Room y DataStore (MVVM)
             val miViewModel: GastosViewModel = viewModel()
 
-            // Recolectamos el estado del Modo Oscuro en tiempo real
+            // Recolectamos el estado del Modo Oscuro guardado en DataStore en tiempo real
             val modoOscuro by miViewModel.isDarkMode.collectAsState()
 
-            // Aplicamos el tema gráfico dinámico de la aplicación
+            // Aplicamos el contenedor de diseño personalizado reactivo al tema elegido
             GastosAppTheme(darkTheme = modoOscuro) {
+                // Creamos el controlador central para gestionar los viajes entre pantallas
                 val navegador = rememberNavController()
 
-                // NavHost: Define la estructura de navegación de 3 pantallas exigida en la rúbrica
+                // NavHost: Define las rutas de navegación requeridas en el punto 4a de la rúbrica
                 NavHost(navController = navegador, startDestination = "pantalla_inicio") {
+                    // Ruta 1: Pantalla principal con el historial de gastos locales y estado de internet
                     composable("pantalla_inicio") {
                         PantallaListaGastos(
                             viewModel = miViewModel,
                             alIrAAjustes = { navegador.navigate("pantalla_config") }
                         )
                     }
+                    // Ruta 2: Pantalla de ajustes para cambiar las preferencias del sistema
                     composable("pantalla_config") {
                         PantallaAjustes(
                             viewModel = miViewModel,
