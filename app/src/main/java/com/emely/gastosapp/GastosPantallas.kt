@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
@@ -33,39 +34,32 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+// Importación obligatoria para Coil (Carga de imágenes de internet)
+import coil.compose.AsyncImage
 
-// Pantalla de Inicio: Sirve para capturar datos locales e informar el estado del servidor
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PantallaListaGastos(viewModel: GastosViewModel, alIrAAjustes: () -> Unit) {
-    // Recolectamos la lista de gastos desde Room de forma reactiva (MVVM)
     val gastos by viewModel.listaGastos.collectAsState()
-
-    // Variables locales para controlar lo que el usuario escribe en las cajas de texto
     var nombreGasto by remember { mutableStateOf("") }
     var precioGasto by remember { mutableStateOf("") }
     val contexto = LocalContext.current
 
-    // Lanzador de la cámara: Captura la miniatura de la foto tomada
     val lanzadorCamara = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicturePreview()
     ) { mapaBits ->
         if (mapaBits != null) {
-            // Guardamos un identificador único simulado de la foto en el ViewModel
             viewModel.fotoTemporalUri = "foto_recibo_${System.currentTimeMillis()}"
             Toast.makeText(contexto, "¡Foto del recibo vinculada!", Toast.LENGTH_SHORT).show()
         }
     }
 
-    // Lanzador de permisos: Pide la cámara en tiempo de ejecución (Punto 4e de la rúbrica)
     val lanzadorPermiso = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { permisoOtorgado ->
         if (permisoOtorgado) {
-            // Caso Éxito: Si acepta el permiso, abre la cámara inmediatamente
             lanzadorCamara.launch(null)
         } else {
-            // Caso Rechazo: Muestra un aviso flotante informando que no se podrá usar la cámara
             Toast.makeText(contexto, "Permiso denegado. No se puede usar la cámara.", Toast.LENGTH_LONG).show()
         }
     }
@@ -81,21 +75,33 @@ fun PantallaListaGastos(viewModel: GastosViewModel, alIrAAjustes: () -> Unit) {
     ) { valoresPadding ->
         Column(modifier = Modifier.padding(valoresPadding).padding(16.dp)) {
 
-            // Tarjeta de la API: Cambia de color dinámicamente según los 3 estados (Punto 4d de la rúbrica)
+            // Componente Coil para cargar imágenes remotas asíncronas desde internet (Punto 4a)
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                AsyncImage(
+                    model = "https://unsplash.com",
+                    contentDescription = "Logotipo de finanzas",
+                    modifier = Modifier.size(60.dp).padding(end = 8.dp)
+                )
+                Text(text = "Tu Panel de Control", style = MaterialTheme.typography.headlineSmall)
+            }
+
             Card(
                 modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
                 colors = CardDefaults.cardColors(
                     containerColor = when (viewModel.estadoApi) {
-                        "Éxito" -> MaterialTheme.colorScheme.primaryContainer       // Verde si funcionó
-                        "Cargando..." -> MaterialTheme.colorScheme.secondaryContainer // Gris si está cargando
-                        else -> MaterialTheme.colorScheme.errorContainer             // Rojo si hay error
+                        "Éxito" -> MaterialTheme.colorScheme.primaryContainer
+                        "Cargando..." -> MaterialTheme.colorScheme.secondaryContainer
+                        else -> MaterialTheme.colorScheme.errorContainer
                     }
                 )
             ) {
                 Column(modifier = Modifier.padding(12.dp)) {
                     Text(text = "Estado del Servidor API: ${viewModel.estadoApi}", style = MaterialTheme.typography.titleSmall)
                     Text(text = viewModel.mensajeResultado, style = MaterialTheme.typography.bodyMedium)
-                    // Si falla el internet, se habilita un botón para volver a intentar la petición
                     if (viewModel.estadoApi == "Error") {
                         TextButton(onClick = { viewModel.consultarServidorRemoto() }) {
                             Text("Reintentar conexión")
@@ -104,7 +110,6 @@ fun PantallaListaGastos(viewModel: GastosViewModel, alIrAAjustes: () -> Unit) {
                 }
             }
 
-            // Campos de entrada para recibir el texto de la descripción y el costo
             OutlinedTextField(
                 value = nombreGasto,
                 onValueChange = { nombreGasto = it },
@@ -120,12 +125,10 @@ fun PantallaListaGastos(viewModel: GastosViewModel, alIrAAjustes: () -> Unit) {
             )
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Fila de botones para interactuar con la cámara y guardar la información
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                // Botón de Cámara: Dispara la solicitud del permiso obligatorio en tiempo de ejecución
                 Button(
                     onClick = { lanzadorPermiso.launch(android.Manifest.permission.CAMERA) },
                     modifier = Modifier.weight(1f).padding(end = 4.dp)
@@ -133,13 +136,11 @@ fun PantallaListaGastos(viewModel: GastosViewModel, alIrAAjustes: () -> Unit) {
                     Text(if (viewModel.fotoTemporalUri != null) "📸 ¡Foto Lista!" else "📷 Tomar Recibo")
                 }
 
-                // Botón Guardar: Valida que los campos no estén vacíos y que el precio sea un número real
                 Button(
                     onClick = {
                         if (nombreGasto.isNotEmpty() && precioGasto.isNotEmpty()) {
                             val montoDouble = precioGasto.toDoubleOrNull()
                             if (montoDouble != null) {
-                                // Guarda de forma asíncrona la información acoplando la foto a Room
                                 viewModel.registrarGasto(nombreGasto, montoDouble, viewModel.fotoTemporalUri)
                                 nombreGasto = ""
                                 precioGasto = ""
@@ -160,7 +161,6 @@ fun PantallaListaGastos(viewModel: GastosViewModel, alIrAAjustes: () -> Unit) {
             Text("Historial registrado (Room Database):", style = MaterialTheme.typography.titleMedium)
             Spacer(modifier = Modifier.height(8.dp))
 
-            // LazyColumn: Lista dinámica optimizada exigida por la rúbrica (Punto 4a)
             LazyColumn {
                 items(gastos) { gasto ->
                     Card(
@@ -174,7 +174,6 @@ fun PantallaListaGastos(viewModel: GastosViewModel, alIrAAjustes: () -> Unit) {
                         ) {
                             Column {
                                 Text(gasto.titulo, style = MaterialTheme.typography.bodyLarge)
-                                // Validación visual: Si el objeto contiene una foto, se dibuja un aviso elegante
                                 if (gasto.fotoUri != null) {
                                     Text("📎 Recibo digitalizado adjunto", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
                                 }
@@ -188,11 +187,10 @@ fun PantallaListaGastos(viewModel: GastosViewModel, alIrAAjustes: () -> Unit) {
     }
 }
 
-// Pantalla Ajustes: Sirve para activar el modo oscuro y guardarlo en DataStore (Punto 4c)
+// Pantalla Ajustes Corregida: Soluciona el error en llaves y alineación de padding
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PantallaAjustes(viewModel: GastosViewModel, alVolver: () -> Unit) {
-    // Recolectamos la preferencia del modo oscuro guardada en el almacenamiento del sistema
     val modoOscuroActivo by viewModel.isDarkMode.collectAsState()
 
     Scaffold(
@@ -206,7 +204,6 @@ fun PantallaAjustes(viewModel: GastosViewModel, alVolver: () -> Unit) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text("Activar Modo Oscuro", style = MaterialTheme.typography.bodyLarge)
-                    // Al cambiar el interruptor, el ViewModel guarda la decisión en DataStore
                     Switch(
                         checked = modoOscuroActivo,
                         onCheckedChange = { viewModel.cambiarModoOscuro(it) }
@@ -214,7 +211,10 @@ fun PantallaAjustes(viewModel: GastosViewModel, alVolver: () -> Unit) {
                 }
             }
             Spacer(modifier = Modifier.height(24.dp))
-            Button(onClick = alVolver, modifier = Modifier.fillMaxWidth()) {
+            Button(
+                onClick = alVolver,
+                modifier = Modifier.fillMaxWidth()
+            ) {
                 Text("Volver al Inicio")
             }
         }
