@@ -17,14 +17,14 @@ class GastosViewModel(application: Application) : AndroidViewModel(application) 
     private val gastoDao = database.gastoDao()
     private val prefsRepository = UserPreferencesRepository(application)
 
-    // Estados reactivos para controlar la API remota (Punto 4d)
+    // Estados reactivos para controlar la API remota (Punto 4d de la rúbrica)
     var estadoApi by mutableStateOf("Cargando información del servidor...")
     var mensajeResultado by mutableStateOf("")
 
-    // NUEVO: Estado temporal para capturar de forma reactiva la foto de la cámara
+    // Estado temporal para capturar de forma reactiva la foto de la cámara
     var fotoTemporalUri by mutableStateOf<String?>(null)
 
-    // Exponer estados mediante StateFlow reactivos (Punto 4b)
+    // Exponer estados mediante StateFlow reactivos (Punto 4b de la rúbrica)
     val isDarkMode: StateFlow<Boolean> = prefsRepository.isDarkMode
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
@@ -60,17 +60,23 @@ class GastosViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    // MODIFICADO: Ahora el registro de Room asocia la ruta de la foto capturada (Punto 4c)
     fun registrarGasto(titulo: String, monto: Double, fotoUri: String?) {
         viewModelScope.launch {
             val nuevoGasto = Gasto(
                 titulo = titulo,
                 monto = monto,
                 categoria = "General",
-                fecha = "11/08/2026",
-                fotoUri = fotoUri // Se almacena de forma persistente la ruta
+                fecha = "14/08/2026",
+                fotoUri = fotoUri
             )
             gastoDao.insertGasto(nuevoGasto)
+        }
+    }
+
+    // NUEVO: Elimina un gasto seleccionado usando Corrutinas de forma asíncrona (Punto 4b, 4c)
+    fun eliminarGasto(gasto: Gasto) {
+        viewModelScope.launch {
+            gastoDao.eliminarGasto(gasto)
         }
     }
 }

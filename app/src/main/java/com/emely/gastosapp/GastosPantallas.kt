@@ -34,24 +34,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-// Importación obligatoria para Coil (Carga de imágenes de internet)
 import coil.compose.AsyncImage
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PantallaListaGastos(viewModel: GastosViewModel, alIrAAjustes: () -> Unit) {
-    // Recolectamos la lista de gastos desde Room de forma reactiva (MVVM)
     val gastos by viewModel.listaGastos.collectAsState()
-
-    // NUEVO: Calculamos la suma total de los montos registrados en tiempo real usando Kotlin puro
     val sumaTotalGastos = gastos.sumOf { it.monto }
 
-    // Variables locales para controlar lo que el usuario escribe en las cajas de texto
     var nombreGasto by remember { mutableStateOf("") }
     var precioGasto by remember { mutableStateOf("") }
     val contexto = LocalContext.current
 
-    // Lanzador de la cámara: Captura la miniatura de la foto tomada
     val lanzadorCamara = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicturePreview()
     ) { mapaBits ->
@@ -61,7 +55,6 @@ fun PantallaListaGastos(viewModel: GastosViewModel, alIrAAjustes: () -> Unit) {
         }
     }
 
-    // Lanzador de permisos: Pide la cámara en tiempo de ejecución (Punto 4e)
     val lanzadorPermiso = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { permisoOtorgado ->
@@ -83,7 +76,6 @@ fun PantallaListaGastos(viewModel: GastosViewModel, alIrAAjustes: () -> Unit) {
     ) { valoresPadding ->
         Column(modifier = Modifier.padding(valoresPadding).padding(16.dp)) {
 
-            // Componente Coil para cargar imágenes remotas asíncronas desde internet (Punto 4a)
             Row(
                 modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -97,12 +89,9 @@ fun PantallaListaGastos(viewModel: GastosViewModel, alIrAAjustes: () -> Unit) {
                 Text(text = "Tu Panel de Control", style = MaterialTheme.typography.headlineSmall)
             }
 
-            // NUEVO COMPONENTE: Tarjeta visual interactiva que reporta el total de dinero gastado
             Card(
                 modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer
-                )
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
             ) {
                 Row(
                     modifier = Modifier.padding(16.dp).fillMaxWidth(),
@@ -110,12 +99,10 @@ fun PantallaListaGastos(viewModel: GastosViewModel, alIrAAjustes: () -> Unit) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(text = "Total Acumulado:", style = MaterialTheme.typography.titleMedium)
-                    // Formateamos a dos decimales para que se vea profesional ($0.00)
                     Text(text = "$${String.format("%.2f", sumaTotalGastos)}", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.primary)
                 }
             }
 
-            // Tarjeta de la API: Cambia de color dinámicamente según los 3 estados (Punto 4d)
             Card(
                 modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
                 colors = CardDefaults.cardColors(
@@ -188,6 +175,7 @@ fun PantallaListaGastos(viewModel: GastosViewModel, alIrAAjustes: () -> Unit) {
             Text("Historial registrado (Room Database):", style = MaterialTheme.typography.titleMedium)
             Spacer(modifier = Modifier.height(8.dp))
 
+            // LazyColumn modificada para incorporar la opción de eliminación asíncrona (Punto 4a)
             LazyColumn {
                 items(gastos) { gasto ->
                     Card(
@@ -199,13 +187,22 @@ fun PantallaListaGastos(viewModel: GastosViewModel, alIrAAjustes: () -> Unit) {
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column {
+                            Column(modifier = Modifier.weight(1f)) {
                                 Text(gasto.titulo, style = MaterialTheme.typography.bodyLarge)
                                 if (gasto.fotoUri != null) {
                                     Text("📎 Recibo digitalizado adjunto", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
                                 }
                             }
-                            Text("$${String.format("%.2f", gasto.monto)}", style = MaterialTheme.typography.titleMedium)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("$${String.format("%.2f", gasto.monto)}", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(end = 8.dp))
+                                // NUEVO BOTÓN: Ejecuta la acción de borrado en Room de forma inmediata
+                                TextButton(onClick = {
+                                    viewModel.eliminarGasto(gasto)
+                                    Toast.makeText(contexto, "Gasto eliminado", Toast.LENGTH_SHORT).show()
+                                }) {
+                                    Text("Borrar", color = MaterialTheme.colorScheme.error)
+                                }
+                            }
                         }
                     }
                 }
@@ -237,10 +234,7 @@ fun PantallaAjustes(viewModel: GastosViewModel, alVolver: () -> Unit) {
                 }
             }
             Spacer(modifier = Modifier.height(24.dp))
-            Button(
-                onClick = alVolver,
-                modifier = Modifier.fillMaxWidth()
-            ) {
+            Button(onClick = alVolver, modifier = Modifier.fillMaxWidth()) {
                 Text("Volver al Inicio")
             }
         }
