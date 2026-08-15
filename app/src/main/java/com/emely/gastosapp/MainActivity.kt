@@ -6,7 +6,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -16,12 +16,14 @@ import com.emely.gastosapp.ui.theme.GastosAppTheme
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
         // Habilita el diseño de borde a borde para aprovechar toda la pantalla
         enableEdgeToEdge()
-        setContent {
-            // Inicialización del ViewModel que controla los datos de Room y DataStore (MVVM)
-            val miViewModel: GastosViewModel = viewModel()
 
+        // CORRECCIÓN CRÍTICA: Inicialización explícita y segura compatible con el SDK 35 para evitar cierres forzados
+        val miViewModel = ViewModelProvider(this)[GastosViewModel::class.java]
+
+        setContent {
             // Recolectamos el estado del Modo Oscuro guardado en DataStore en tiempo real
             val modoOscuro by miViewModel.isDarkMode.collectAsState()
 
