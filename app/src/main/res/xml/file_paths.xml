@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths xmlns:android="http://android.com">
+    <cache-path name="recibos_camara" path="." />
+</paths>
