@@ -11,28 +11,23 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
+// CORRECCIÓN DEFINITIVA: Herencia estricta de AndroidViewModel recibiendo la propiedad application requerida en el paso de la Factory
 class GastosViewModel(application: Application) : AndroidViewModel(application) {
 
-    // Inicialización directa y segura de las dependencias locales requeridas en la rúbrica (Punto 4c)
     private val database = AppDatabase.getDatabase(application)
     private val gastoDao = database.gastoDao()
     private val prefsRepository = UserPreferencesRepository(application)
 
-    // Estados reactivos para controlar la API remota (Punto 4d de la rúbrica)
     var estadoApi by mutableStateOf("Cargando información del servidor...")
     var mensajeResultado by mutableStateOf("")
-
-    // Estado temporal para capturar de forma reactiva la foto de la cámara (Punto 4e de la rúbrica)
     var fotoTemporalUri by mutableStateOf<String?>(null)
 
-    // Exponer estados mediante StateFlow reactivos estables (Punto 4b de la rúbrica)
     val isDarkMode: StateFlow<Boolean> = prefsRepository.isDarkMode
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     val listaGastos: StateFlow<List<Gasto>> = gastoDao.getAllGastos()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    // Bloque de inicialización protegido contra fallas críticas de arranque
     init {
         consultarServidorRemoto()
     }

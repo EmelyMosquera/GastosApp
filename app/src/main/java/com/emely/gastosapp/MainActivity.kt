@@ -16,7 +16,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.emely.gastosapp.ui.theme.GastosAppTheme
 
-// Declaración global única de DataStore vinculada al contexto raíz
+// Instancia única global de DataStore vinculada al contexto raíz
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "user_settings")
 
 class MainActivity : ComponentActivity() {
@@ -24,8 +24,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        // Inicialización segura del ViewModel
-        val miViewModel = ViewModelProvider(this)[GastosViewModel::class.java]
+        // SOLUCIÓN AL CRASH: Usamos la Factory oficial de AndroidViewModel para inyectar la Application de forma segura
+        val factory = ViewModelProvider.AndroidViewModelFactory.getInstance(application)
+        val miViewModel = ViewModelProvider(this, factory)[GastosViewModel::class.java]
 
         setContent {
             val modoOscuro by miViewModel.isDarkMode.collectAsState()
