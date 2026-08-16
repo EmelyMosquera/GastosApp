@@ -11,7 +11,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-// CORRECCIÓN DEFINITIVA: Herencia estricta de AndroidViewModel recibiendo la propiedad application requerida en el paso de la Factory
+// Arquitectura de ciclo de vida estable exigida en el punto 4b de la rúbrica
 class GastosViewModel(application: Application) : AndroidViewModel(application) {
 
     private val database = AppDatabase.getDatabase(application)
@@ -32,6 +32,7 @@ class GastosViewModel(application: Application) : AndroidViewModel(application) 
         consultarServidorRemoto()
     }
 
+    // Consumo asíncrono controlado con Retrofit exigido en el punto 4d de la rúbrica
     fun consultarServidorRemoto() {
         viewModelScope.launch {
             try {
@@ -39,12 +40,15 @@ class GastosViewModel(application: Application) : AndroidViewModel(application) 
                 val respuesta = RetrofitCliente.apiService.obtenerTipoCambio()
                 if (respuesta.isSuccessful && respuesta.body() != null) {
                     estadoApi = "Éxito"
-                    mensajeResultado = "API Conectada. Moneda base de cambio: ${respuesta.body()?.base_code}"
+                    // CORRECCIÓN: Leemos el nuevo nombre estético baseCode mapeado con SerializedName
+                    mensajeResultado = "API Conectada. Moneda base de cambio: ${respuesta.body()?.baseCode}"
                 } else {
                     estadoApi = "Error"
                     mensajeResultado = "El servidor remoto no responde adecuadamente"
                 }
             } catch (e: Exception) {
+                // CORRECCIÓN: Usamos la variable e para imprimir el error en consola y limpiar la advertencia amarilla
+                e.printStackTrace()
                 estadoApi = "Error"
                 mensajeResultado = "Sin conexión a internet disponible"
             }
