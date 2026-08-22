@@ -16,35 +16,184 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.emely.gastosapp.ui.theme.GastosAppTheme
 
-// Instancia única global de DataStore vinculada al contexto raíz
-val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "user_settings")
+val Context.dataStore: DataStore<Preferences> by
+preferencesDataStore(
+    name = "user_settings"
+)
 
 class MainActivity : ComponentActivity() {
-    override fun onCreate(savedInstanceState: Bundle?) {
+
+    override fun onCreate(
+        savedInstanceState: Bundle?
+    ) {
+
         super.onCreate(savedInstanceState)
+
         enableEdgeToEdge()
 
-        // SOLUCIÓN AL CRASH: Usamos la Factory oficial de AndroidViewModel para inyectar la Application de forma segura
-        val factory = ViewModelProvider.AndroidViewModelFactory.getInstance(application)
-        val miViewModel = ViewModelProvider(this, factory)[GastosViewModel::class.java]
+        // Se crea el ViewModel utilizando la Application del proyecto.
+        val factory =
+            ViewModelProvider
+                .AndroidViewModelFactory
+                .getInstance(application)
+
+        val gastosViewModel =
+            ViewModelProvider(
+                this,
+                factory
+            )[GastosViewModel::class.java]
 
         setContent {
-            val modoOscuro by miViewModel.isDarkMode.collectAsState()
 
-            GastosAppTheme(darkTheme = modoOscuro) {
-                val navegador = rememberNavController()
+            val modoOscuro by
+            gastosViewModel
+                .isDarkMode
+                .collectAsState()
 
-                NavHost(navController = navegador, startDestination = "pantalla_inicio") {
-                    composable("pantalla_inicio") {
-                        PantallaListaGastos(
-                            viewModel = miViewModel,
-                            alIrAAjustes = { navegador.navigate("pantalla_config") }
+            GastosAppTheme(
+                darkTheme = modoOscuro
+            ) {
+
+                val navController =
+                    rememberNavController()
+
+                NavHost(
+                    navController =
+                        navController,
+
+                    startDestination =
+                        "bienvenida"
+                ) {
+
+                    // Primera pantalla que presenta la aplicación.
+                    composable(
+                        route = "bienvenida"
+                    ) {
+
+                        PantallaBienvenida(
+
+                            alComenzar = {
+
+                                navController.navigate(
+                                    "inicio"
+                                ) {
+
+                                    popUpTo(
+                                        "bienvenida"
+                                    ) {
+                                        inclusive = true
+                                    }
+                                }
+                            }
                         )
                     }
-                    composable("pantalla_config") {
+
+                    // Panel principal.
+                    composable(
+                        route = "inicio"
+                    ) {
+
+                        PantallaInicio(
+                            viewModel =
+                                gastosViewModel,
+
+                            alNuevoGasto = {
+
+                                navController.navigate(
+                                    "nuevo_gasto"
+                                )
+                            },
+
+                            alHistorial = {
+
+                                navController.navigate(
+                                    "historial"
+                                )
+                            },
+
+                            alEstadisticas = {
+
+                                navController.navigate(
+                                    "estadisticas"
+                                )
+                            },
+
+                            alAjustes = {
+
+                                navController.navigate(
+                                    "ajustes"
+                                )
+                            }
+                        )
+                    }
+
+                    // Formulario para registrar un nuevo gasto.
+                    composable(
+                        route = "nuevo_gasto"
+                    ) {
+
+                        PantallaNuevoGasto(
+                            viewModel =
+                                gastosViewModel,
+
+                            alVolver = {
+                                navController
+                                    .popBackStack()
+                            },
+
+                            alGuardar = {
+
+                                navController
+                                    .popBackStack()
+                            }
+                        )
+                    }
+
+                    // Historial de movimientos.
+                    composable(
+                        route = "historial"
+                    ) {
+
+                        PantallaHistorial(
+                            viewModel =
+                                gastosViewModel,
+
+                            alVolver = {
+                                navController
+                                    .popBackStack()
+                            }
+                        )
+                    }
+
+                    // Resumen estadístico.
+                    composable(
+                        route = "estadisticas"
+                    ) {
+
+                        PantallaEstadisticas(
+                            viewModel =
+                                gastosViewModel,
+
+                            alVolver = {
+                                navController
+                                    .popBackStack()
+                            }
+                        )
+                    }
+
+                    // Preferencias de la aplicación.
+                    composable(
+                        route = "ajustes"
+                    ) {
+
                         PantallaAjustes(
-                            viewModel = miViewModel,
-                            alVolver = { navegador.popBackStack() }
+                            viewModel =
+                                gastosViewModel,
+
+                            alVolver = {
+                                navController
+                                    .popBackStack()
+                            }
                         )
                     }
                 }
