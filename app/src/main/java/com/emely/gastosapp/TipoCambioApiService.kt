@@ -13,7 +13,7 @@ interface TipoCambioApiService {
 
 // Objeto conector (Singleton) encargado de construir la instancia del cliente Retrofit
 object RetrofitCliente {
-    private const val BASE_URL = "https://exchangerate-api.com"
+    private const val BASE_URL = "https://open.er-api.com/"
 
     val apiService: TipoCambioApiService by lazy {
         Retrofit.Builder()
